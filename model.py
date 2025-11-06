@@ -5,6 +5,7 @@ import joblib
 from sklearn.preprocessing import OrdinalEncoder
 from datetime import datetime
 import matplotlib.pyplot as plt
+import os
 
 # -------------------------------------------------------
 # PAGE CONFIGURATION
@@ -80,6 +81,9 @@ st.markdown("### 🧾 Predict Regional Financial Penetration")
 with st.form("predict_form"):
     col1, col2 = st.columns(2)
 
+    # --- NEW FIELD FOR REGION NAME ---
+    region_name = st.text_input("Region Name", placeholder="Enter the region name, e.g., Nsukka, Enugu North...")
+
     with col1:
         population = st.selectbox("Population Size", ["Low", "Average", "High"])
         employment = st.selectbox("Location Type", ["Urban", "Rural"])
@@ -107,10 +111,41 @@ with st.form("predict_form"):
         prediction = "Financial Services Will Thrive" if prob >= threshold else "Financial Services Might Not Penetrate"
         confidence = 'High' if prob > 0.7 else 'Medium' if prob > 0.4 else 'Low'
 
-        # Display Results
+        # -------------------------------------------------------
+        # SAVE RESULT LOCALLY (CSV)
+        # -------------------------------------------------------
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        record = {
+            "region_name": region_name if region_name else "Unnamed Region",
+            "location_type": employment,
+            "cellphone_access": mobile,
+            "household_size": population,
+            "educational_level": education,
+            "job_type": occupation,
+            "probability": float(prob),
+            "prediction": prediction,
+            "confidence": confidence,
+            "timestamp": timestamp
+        }
+
+        csv_file = "predictions.csv"
+        df_record = pd.DataFrame([record])
+
+        if os.path.exists(csv_file):
+            df_existing = pd.read_csv(csv_file)
+            df_all = pd.concat([df_existing, df_record], ignore_index=True)
+        else:
+            df_all = df_record
+
+        df_all.to_csv(csv_file, index=False)
+
+        # -------------------------------------------------------
+        # DISPLAY RESULTS
+        # -------------------------------------------------------
         st.markdown("### 🎯 Prediction Result")
         st.metric(label="Prediction", value=prediction)
         st.progress(prob)
+        st.write(f"**Region Name:** {region_name if region_name else 'Unnamed Region'}")
         st.write(f"**Probability of Financial Institution Penetration:** {prob:.2%}")
         st.write(f"**Model Confidence:** {'🟢 High' if prob > 0.7 else '🟡 Medium' if prob > 0.4 else '🔴 Low'}")
 
@@ -123,11 +158,24 @@ with st.form("predict_form"):
             if employment == "Rural":
                 st.info("🏦 Improve mobile banking access or create local banking points in rural communities.")
             if education == "Low Formal Education":
-                st.info("📘 Invest and Implement financial literacy programs for low-education populations.")
+                st.info("📘 Implement financial literacy programs for low-education populations.")
             if mobile == "No":
-                st.info("📱 Expand mobile Money and internet coverage.")
+                st.info("📱 Expand mobile money and internet coverage.")
         else:
             st.success("✅ Region already shows high potential for financial services. Consider introducing advanced banking services like credit, loans, or digital payments.")
+
+# -------------------------------------------------------
+# SHOW SAVED HISTORY
+# -------------------------------------------------------
+st.markdown("---")
+st.subheader("📋 Saved Predictions")
+
+if os.path.exists("predictions.csv"):
+    df_history = pd.read_csv("predictions.csv")
+    st.dataframe(df_history.tail(10))  # show latest 10 records
+    st.bar_chart(df_history["probability"])
+else:
+    st.info("No prediction records yet — make your first prediction above.")
 
 # -------------------------------------------------------
 # SIDEBAR
@@ -141,6 +189,7 @@ It uses a trained ML model to predict how well financial institutions
 might penetrate a region, based on its social and economic attributes.
 
 **Key Inputs:**
+- Region Name  
 - Population Size  
 - Education Level  
 - Employment Rate  
