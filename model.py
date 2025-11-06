@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-import mysql.connector
 from sklearn.preprocessing import OrdinalEncoder
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -15,37 +14,6 @@ st.set_page_config(
     page_icon="💰",
     layout="wide"
 )
-
-# -------------------------------------------------------
-# DATABASE CONNECTION (MySQL via XAMPP)
-# -------------------------------------------------------
-def create_connection():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",          # default XAMPP user
-        password="",          # leave blank if you haven't set a password
-        database="financial_db"
-    )
-
-# Function to insert data into MySQL
-def insert_record(data):
-    conn = create_connection()
-    cursor = conn.cursor()
-    query = """INSERT INTO predictions 
-               (location_type, cellphone_access, household_size, educational_level, job_type, 
-                probability, prediction, confidence, timestamp)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-    cursor.execute(query, data)
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-# Function to fetch stored data
-def fetch_history():
-    conn = create_connection()
-    df = pd.read_sql("SELECT * FROM predictions ORDER BY id DESC", conn)
-    conn.close()
-    return df
 
 # -------------------------------------------------------
 # LOAD MODEL
@@ -117,7 +85,7 @@ with st.form("predict_form"):
         employment = st.selectbox("Location Type", ["Urban", "Rural"])
         education = st.selectbox("Education Level", dummy_categories[3])
     with col2:
-        occupation = st.selectbox("Prevailant Regional Occupation", dummy_categories[4])
+        occupation = st.selectbox("Prevailing Regional Occupation", dummy_categories[4])
         mobile = st.selectbox("Internet/Mobile Access", ["Yes", "No"])
 
     submitted = st.form_submit_button("🔮 Predict Bank Penetration")
@@ -139,10 +107,6 @@ with st.form("predict_form"):
         prediction = "Financial Services Will Thrive" if prob >= threshold else "Financial Services Might Not Penetrate"
         confidence = 'High' if prob > 0.7 else 'Medium' if prob > 0.4 else 'Low'
 
-        # Save record to MySQL
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        insert_record((employment, mobile, population, education, occupation, float(prob), prediction, confidence, timestamp))
-
         # Display Results
         st.markdown("### 🎯 Prediction Result")
         st.metric(label="Prediction", value=prediction)
@@ -163,23 +127,7 @@ with st.form("predict_form"):
             if mobile == "No":
                 st.info("📱 Expand mobile Money and internet coverage.")
         else:
-            st.success("✅ Region already shows high potential for financial services.  Consider introducing advanced banking services like credit, loans, or digital payments.")
-
-# -------------------------------------------------------
-# SHOW HISTORY FROM DATABASE
-# -------------------------------------------------------
-st.markdown("---")
-st.subheader("📋 Stored Predictions (MySQL)")
-
-try:
-    df_history = fetch_history()
-    if not df_history.empty:
-        st.dataframe(df_history)
-        st.bar_chart(df_history['probability'])
-    else:
-        st.info("No prediction data yet — make your first prediction above.")
-except Exception as e:
-    st.error(f"Error fetching data: {e}")
+            st.success("✅ Region already shows high potential for financial services. Consider introducing advanced banking services like credit, loans, or digital payments.")
 
 # -------------------------------------------------------
 # SIDEBAR
@@ -209,4 +157,4 @@ st.sidebar.success("""
 """)
 
 st.sidebar.markdown("---")
-st.sidebar.caption("💻 Developed by **Uzor Donatus** | Powered by **Streamlit + MySQL + scikit-learn** ⚙️")
+st.sidebar.caption("💻 Developed by **Uzor Donatus** | Powered by **Streamlit + scikit-learn** ⚙️")
