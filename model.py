@@ -50,7 +50,7 @@ def fetch_history():
 # -------------------------------------------------------
 # LOAD MODEL
 # -------------------------------------------------------
-loaded_model = joblib.load('C:/Users/CASOR UNN MEDIA/Desktop/IT IS WELL/Dona Project/financial.pkl')
+loaded_model = joblib.load('financial.pkl')
 
 # -------------------------------------------------------
 # DEFINE FEATURES
