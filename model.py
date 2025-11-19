@@ -24,7 +24,7 @@ USERS_FILE = "users.csv"
 def hash_password(password: str):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def verify_password(password, hashed: str):
+def verify_password(password, hashed):
     return hash_password(password) == hashed
 
 def load_users():
@@ -36,7 +36,7 @@ def load_users():
         return pd.DataFrame(columns=["username", "password", "role"])
 
 def login(username, password):
-    # Check default admin first
+    # Check default admin
     if username == DEFAULT_ADMIN_USER and password == DEFAULT_ADMIN_PASS:
         return True, DEFAULT_ADMIN_ROLE
     # Check CSV users
@@ -83,8 +83,7 @@ def set_theme(dark_mode: bool):
 def load_model(path="financial.pkl"):
     if os.path.exists(path):
         return joblib.load(path)
-    else:
-        return None
+    return None
 
 # -------------------------
 # Encoder setup
@@ -109,6 +108,34 @@ st.sidebar.title("Navigation")
 page = st.sidebar.selectbox("Go to", ["Home", "Predict", "Dashboard", "Model Comparison", "History", "Admin"])
 dark = st.sidebar.checkbox("Dark mode", value=False)
 set_theme(dark)
+
+# -------------------------
+# Sidebar About & Quick Facts
+# -------------------------
+st.sidebar.header("📚 About the App")
+st.sidebar.info("""
+This predictive tool helps policymakers and financial institutions understand
+how regional demographic characteristics influence **financial penetration**.
+
+It uses a trained ML model to predict how well financial institutions
+might penetrate a region, based on its social and economic attributes.
+
+**Key Inputs:**
+- Region Name  
+- Population Size  
+- Education Level  
+- Employment Rate  
+- Mobile Access  
+- Prevailing Regional Occupation
+""")
+
+st.sidebar.markdown("---")
+st.sidebar.header("💡 Quick Facts")
+st.sidebar.success("""
+- Urban areas show ~82% bank access.  
+- Rural access averages 46%.  
+- Education & mobile access boost banking likelihood.
+""")
 
 # -------------------------
 # Authentication status
@@ -167,9 +194,7 @@ if page == "Home":
     st.markdown("---")
     st.info("This application predicts and analyzes regional financial institution penetration. It includes dashboards, mapping, model comparison, and admin retraining tools.")
 
-    # -------------------------
     # Visual Overview
-    # -------------------------
     st.markdown("### 📊 Regional Financial Insights")
     col1, col2 = st.columns(2)
     sample_data = pd.DataFrame({
@@ -203,6 +228,7 @@ elif page == "Predict":
             submitted = st.form_submit_button("🔮 Predict")
 
         if submitted:
+            # Prepare input
             input_data = pd.DataFrame({
                 'location_type': [employment],
                 'cellphone_access': [mobile],
@@ -210,7 +236,6 @@ elif page == "Predict":
                 'educational_level': [education],
                 'job_type': [occupation]
             })[feature_names]
-
             input_encoded = encoder.transform(input_data)
             if loaded_model is None:
                 st.error("Model not found. Please upload/retrain via Admin page.")
@@ -219,16 +244,13 @@ elif page == "Predict":
                 threshold = 0.4
                 prediction = "Financial Services Will Thrive" if prob >= threshold else "Financial Services Might Not Penetrate"
 
-                # -------------------------
                 # Display results & recommendations
-                # -------------------------
                 st.markdown("### 🎯 Prediction Result")
                 st.metric(label="Prediction", value=prediction)
                 st.progress(prob)
                 st.write(f"**Region Name:** {region_name if region_name else 'Unnamed Region'}")
                 st.write(f"**Probability of Financial Institution Penetration:** {prob:.2%}")
                 st.write(f"**Model Confidence:** {'🟢 High' if prob > 0.7 else '🟡 Medium' if prob > 0.4 else '🔴 Low'}")
-
                 if prob > 0.7:
                     st.balloons()
 
@@ -243,6 +265,7 @@ elif page == "Predict":
                 else:
                     st.success("✅ Region already shows high potential for financial services. Consider introducing advanced banking services like credit, loans, or digital payments.")
 
+                # Save record
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 record = {
                     "region_name": region_name or "Unnamed Region",
@@ -268,9 +291,10 @@ elif page == "Dashboard":
             st.markdown("### Prediction Summary")
             st.dataframe(df.tail(10))
 
-            # Fix histogram: numeric values for bar_chart
-            hist_counts = pd.cut(df['probability'], bins=10).value_counts().sort_index()
-            st.bar_chart(hist_counts.values)
+            # Histogram fix
+            hist_data = pd.cut(df['probability'], bins=10)
+            hist_counts = hist_data.value_counts().sort_index()
+            st.bar_chart(pd.DataFrame({'Probability': hist_counts.values}, index=[str(x) for x in hist_counts.index]))
 
             # Pie chart
             fig = px.pie(df, names='prediction', title="Prediction Distribution")
